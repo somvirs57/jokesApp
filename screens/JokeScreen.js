@@ -1,3 +1,4 @@
+/* eslint-disable radix */
 import React, {useEffect, useState} from 'react';
 import {
   View,
@@ -17,35 +18,35 @@ import Clipboard from '@react-native-clipboard/clipboard';
 
 const JokeScreen = props => {
   const jokeData = props.jokes;
-  const [joke, setJoke] = useState({
+
+  const initialJokeState = {
     _id: '',
     joke: '',
     likeCount: '',
     dislikeCount: '',
-  });
-  const [previousJoke, setProviousJoke] = useState({
-    _id: '',
-    joke: '',
-    likeCount: '',
-    dislikeCount: '',
-  });
-  const [liked, setLiked] = useState(false);
-  const [disliked, setDisliked] = useState(false);
-  const [appLikeCount, setAppLikeCount] = useState();
-  const [appDislikeCount, setAppDislikeCount] = useState();
+    liked: false,
+    disliked: false,
+  };
+
+  const [joke, setJoke] = useState(initialJokeState);
+  const [previousJoke, setProviousJoke] = useState(initialJokeState);
 
   useEffect(() => {
     getRandomJoke();
+    setProviousJoke('');
   }, []);
 
   const getRandomJoke = () => {
     setProviousJoke(joke);
     const appJoke = jokeData[Math.floor(Math.random() * jokeData.length)];
-    setJoke(appJoke);
-    setAppLikeCount(appJoke.likeCount);
-    setAppDislikeCount(appJoke.dislikeCount);
-    setDisliked(false);
-    setLiked(false);
+    setJoke({
+      _id: appJoke._id,
+      joke: appJoke.joke,
+      likeCount: appJoke.likeCount,
+      dislikeCount: appJoke.dislikeCount,
+      liked: false,
+      disliked: false,
+    });
   };
 
   const getPreviousJoke = () => {
@@ -53,7 +54,26 @@ const JokeScreen = props => {
     setProviousJoke('');
   };
 
-  const sendLike = async () => {
+  const decreaseAppLike = () => {
+    setJoke(prevState => ({
+      ...prevState,
+      likeCount: parseInt(prevState.likeCount) - 1,
+      liked: !prevState.liked,
+    }));
+    fetch(
+      `https://quiet-ravine-27720.herokuapp.com/jokes/${joke._id}/removeLike`,
+      {
+        method: 'PATCH',
+      },
+    );
+  };
+
+  const increaseAppLike = () => {
+    setJoke(prevState => ({
+      ...prevState,
+      likeCount: parseInt(prevState.likeCount) + 1,
+      liked: !prevState.liked,
+    }));
     fetch(
       `https://quiet-ravine-27720.herokuapp.com/jokes/${joke._id}/addLike`,
       {
@@ -61,38 +81,53 @@ const JokeScreen = props => {
       },
     );
   };
+
+  const increaseAppDislike = () => {
+    setJoke(prevState => ({
+      ...prevState,
+      dislikeCount: parseInt(prevState.dislikeCount) + 1,
+      disliked: !prevState.disliked,
+    }));
+    fetch(
+      `https://quiet-ravine-27720.herokuapp.com/jokes/${joke._id}/addDislike`,
+      {
+        method: 'PATCH',
+      },
+    );
+  };
+  const decreaseAppDislike = () => {
+    setJoke(prevState => ({
+      ...prevState,
+      dislikeCount: parseInt(prevState.dislikeCount) - 1,
+      disliked: !prevState.disliked,
+    }));
+    fetch(
+      `https://quiet-ravine-27720.herokuapp.com/jokes/${joke._id}/removeDislike`,
+      {
+        method: 'PATCH',
+      },
+    );
+  };
+
   const likeJoke = () => {
-    if (!liked) {
-      setLiked(prevState => !prevState);
-      // eslint-disable-next-line radix
-      setAppLikeCount(prevCount => parseInt(prevCount) + 1);
-      sendLike();
-      if (disliked) {
-        setDisliked(false);
-        // eslint-disable-next-line radix
-        setAppDislikeCount(prevCount => parseInt(prevCount) - 1);
+    if (!joke.liked) {
+      increaseAppLike();
+      if (joke.disliked) {
+        decreaseAppDislike();
       }
-    } else if (liked) {
-      setLiked(prevState => !prevState);
-      // eslint-disable-next-line radix
-      setAppLikeCount(prevCount => parseInt(prevCount) - 1);
+    } else if (joke.liked) {
+      decreaseAppLike();
     }
   };
 
   const dislikeJoke = () => {
-    if (!disliked) {
-      setDisliked(prevState => !prevState);
-      // eslint-disable-next-line radix
-      setAppDislikeCount(prevCount => parseInt(prevCount) + 1);
-      if (liked) {
-        setLiked(false);
-        // eslint-disable-next-line radix
-        setAppLikeCount(prevCount => parseInt(prevCount) - 1);
+    if (!joke.disliked) {
+      increaseAppDislike();
+      if (joke.liked) {
+        decreaseAppLike();
       }
-    } else if (disliked) {
-      setDisliked(prevState => !prevState);
-      // eslint-disable-next-line radix
-      setAppDislikeCount(prevCount => parseInt(prevCount) - 1);
+    } else if (joke.disliked) {
+      decreaseAppDislike();
     }
   };
 
@@ -141,9 +176,9 @@ const JokeScreen = props => {
               <Fontisto
                 name={'smiley'}
                 size={iconSize}
-                color={`${liked ? '#1d9adc' : 'grey'}`}
+                color={`${joke.liked ? '#1d9adc' : 'grey'}`}
               />
-              <Text style={styles.actionButtonText}>{appLikeCount}</Text>
+              <Text style={styles.actionButtonText}>{joke.likeCount}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.dislikeButton}
@@ -151,9 +186,9 @@ const JokeScreen = props => {
               <Fontisto
                 name={'expressionless'}
                 size={iconSize}
-                color={`${disliked ? '#f3253a' : 'grey'}`}
+                color={`${joke.disliked ? '#f3253a' : 'grey'}`}
               />
-              <Text style={styles.actionButtonText}>{appDislikeCount}</Text>
+              <Text style={styles.actionButtonText}>{joke.dislikeCount}</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity
